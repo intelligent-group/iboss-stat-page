@@ -1,16 +1,25 @@
 # iBoss Stat Page
 
-The public website source lives in `ops/`. It contains only the sign-in entry page, the official iBoss logo, and `.nojekyll`.
+This repository contains the browser interface for the iBoss partner workspace. GitHub Pages serves the dashboard from `ops/` at `https://intelligent-group.github.io/iboss-stat-page/`.
 
-GitHub Pages publishes the contents of `ops/` through the `gh-pages` branch. The live entry page is https://intelligent-group.github.io/iboss-stat-page/.
+Private account data and authorization are handled by the separate application API. No private records, source transcripts, credentials, or server code are bundled in this repository. Each user signs in with their approved email and password. The browser keeps its bearer session only in memory; refreshing the page requires signing in again.
 
-The Sign in link opens the secured iBoss Partner Desk on its existing backend. Account data, authentication, access management, and recurring CRM updates remain on that backend. No private records, credentials, or backend source are stored here.
+## Build
 
-After changing files in `ops/`, publish the updated subtree with:
+```sh
+npm ci
+npm run build
+```
+
+Vite builds the client sources in `src/` into `ops/`. The public assets include the official iBoss logo. Password setup links carry a one-use token in the URL fragment, which the application clears immediately and holds only in memory until password setup is submitted.
+
+## Publish
+
+GitHub Pages is configured to serve the root of `gh-pages`. After verifying a build, publish `ops/`:
 
 ```sh
 git push origin main
 git subtree push --prefix ops origin gh-pages
 ```
 
-GitHub Pages is configured to deploy from the root of `gh-pages`. No custom workflow or secrets are required.
+The API origin is configured in `src/lib/api.ts`. API permissions are enforced on the server. Partner, owner, and administrator views in the browser do not grant access by themselves.
