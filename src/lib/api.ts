@@ -59,7 +59,7 @@ export const login = (email: string, password: string) => authenticate("/api/aut
 export const activate = (password: string) => authenticate("/api/auth/activate", { token: state.setupToken, password });
 export async function changePassword(password: string) {
   if (!state.session?.token) throw new Error("Please sign in again before changing your password.");
-  if (Array.from(password).length < 14 || Array.from(password).length > 128) throw new Error("Use a password between 14 and 128 characters.");
+  if (Array.from(password).length < 6 || Array.from(password).length > 128) throw new Error("Use a password between 6 and 128 characters.");
   const revision = ++authRevision;
   const response = await apiFetch("/api/auth/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
   const result = await response.json() as Session & { error?: string };
