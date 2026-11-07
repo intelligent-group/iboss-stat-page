@@ -2,7 +2,7 @@ const API_ORIGIN = "https://iboss-conversation-desk.manuelruiz3.chatgpt.site";
 export const APP_BASE = import.meta.env.BASE_URL;
 export const assetUrl = (name: string) => `${APP_BASE}${name.replace(/^\/+/, "")}`;
 export const appSignInUrl = () => new URL(APP_BASE, window.location.origin).href;
-type Session = { token: string; expiresAt: string; email: string };
+type Session = { token: string; expiresAt: string; email: string; mustChangePassword?: boolean };
 type AuthSnapshot = { session: Session | null; notice: string; setupToken: string };
 let state: AuthSnapshot = { session: null, notice: "", setupToken: "" };
 const listeners = new Set<() => void>();
@@ -26,6 +26,7 @@ export function clearSession(notice = "") { authRevision++; if (expiryTimer) cle
 export function leaveSetup() { clearSession(); }
 function saveSession(session: Session) {
   if (typeof session.token !== "string" || !session.token || typeof session.email !== "string" || !session.email || typeof session.expiresAt !== "string" || !Number.isFinite(Date.parse(session.expiresAt))) throw new Error("Sign-in returned an invalid session.");
+  if (session.mustChangePassword !== undefined && typeof session.mustChangePassword !== "boolean") throw new Error("Sign-in returned an invalid session.");
   const duration = Date.parse(session.expiresAt) - Date.now();
   if (duration <= 0) throw new Error("This session has already expired. Please sign in again.");
   if (expiryTimer) clearTimeout(expiryTimer);
@@ -34,6 +35,7 @@ function saveSession(session: Session) {
 }
 export async function apiFetch(path: string, init: RequestInit = {}) {
   if (!path.startsWith("/api/") || path.includes("\\") || path.startsWith("//")) throw new Error("Invalid application request.");
+  if (state.session?.mustChangePassword && path !== "/api/auth/password" && path !== "/api/auth/logout") throw new Error("Choose your private password before opening the workspace.");
   const token = state.session?.token;
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`); else headers.delete("Authorization");
@@ -55,6 +57,16 @@ async function authenticate(path: string, payload: unknown) {
 }
 export const login = (email: string, password: string) => authenticate("/api/auth/login", { email: email.trim().toLowerCase(), password });
 export const activate = (password: string) => authenticate("/api/auth/activate", { token: state.setupToken, password });
+export async function changePassword(password: string) {
+  if (!state.session?.token) throw new Error("Please sign in again before changing your password.");
+  if (Array.from(password).length < 14 || Array.from(password).length > 128) throw new Error("Use a password between 14 and 128 characters.");
+  const revision = ++authRevision;
+  const response = await apiFetch("/api/auth/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+  const result = await response.json() as Session & { error?: string };
+  if (!response.ok) throw new Error(result.error || "Your password could not be changed. Please try again.");
+  if (revision !== authRevision) throw new Error("The sign-in request changed. Please try again.");
+  saveSession(result);
+}
 export async function logout() {
   const token = state.session?.token;
   clearSession("Signed out.");

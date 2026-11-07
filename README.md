@@ -22,4 +22,6 @@ git push origin main
 git subtree push --prefix ops origin gh-pages
 ```
 
+Temporary sign-in passwords expire after 24 hours and grant only a one-hour password-change session. The user must choose a private password with at least 14 characters before the dashboard can load.
+
 The API origin is configured in `src/lib/api.ts`. API permissions are enforced on the server. Partner, owner, and administrator views in the browser do not grant access by themselves.
