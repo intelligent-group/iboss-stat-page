@@ -6,7 +6,7 @@ import AdminAccess from "@/components/admin-access";
 import CalendarView from "@/components/calendar-view";
 import ClientIndex from "@/components/client-index";
 import ReadinessDetail, { ReadinessWorkstreams, PartnerEnrichmentPreview } from "@/components/readiness-detail";
-import { curatedRecords, type Enrichments } from "@/components/workspace-view-data";
+import { clientIdentity, curatedRecords, type Enrichments } from "@/components/workspace-view-data";
 import { ArrowRight, ArrowUpRight, Building2, CalendarDays, Check, CheckCheck, ChevronRight, FileText, FlaskConical, Inbox, LayoutDashboard, ListTodo, LockKeyhole, Mail, Mic, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 
 type Stage = "New" | "Needs follow-up" | "Meeting proposed" | "Meeting scheduled" | "Completed";
@@ -51,12 +51,12 @@ export default function Home() {
   useEffect(() => { refresh(); const id = setInterval(() => refresh(true), 60000); return () => { clearInterval(id); request.current?.abort(); }; }, [refresh]);
   const records = useMemo(() => [...desk.records].sort((a, b) => new Date(b.date).valueOf() - new Date(a.date).valueOf()), [desk.records]);
   const workspaceRecords = useMemo(() => curatedRecords(records, ownerView), [records, ownerView]);
-  const accounts = new Set(records.map(r => r.account.trim().toLowerCase()).filter(Boolean)).size;
+  const accounts = new Set(workspaceRecords.map(record => clientIdentity(record)?.id).filter(Boolean)).size;
   const portalRequests = records.filter(r => r.portalNeeded);
   const pilots = new Set(records.filter(r => !!r.pilotUsers?.trim()).map(r => r.account.toLowerCase())).size;
   const demoContacts = workspaceRecords.flatMap(r => (r.demoContacts || []).filter(c => !!c.email).map(c => ({ ...c, record: r })));
   const uniqueDemoContacts = demoContacts.filter((c, i, arr) => arr.findIndex(d => d.email.toLowerCase() === c.email.toLowerCase()) === i);
-  const followups = records.filter(r => ["New", "Needs follow-up", "Meeting proposed"].includes(r.stage) && r.nextAction);
+  const followups = records.filter(r => r.stage !== "Completed" && r.nextAction.trim());
   const pending = records.filter(r => !r.partnerVisible).length;
   const filtered = records.filter(r => (view !== "Next steps" || followups.some(f => f.id === r.id)) && (!ownerView || source === "all" || r.source === source) && (stage === "all" || r.stage === stage) && [r.title, r.account, r.summary, r.owner, r.pointPerson, r.nextAction, ...(ownerView ? [r.contact, r.excerpt, r.notes] : [])].filter(Boolean).join(" ").toLowerCase().includes(query.toLowerCase()));
   const stale = !!desk.sync.lastSuccess && Date.now() - new Date(desk.sync.lastSuccess).valueOf() > (desk.sync.cloudScheduleEnabled ? 90 : 45) * 60000;
