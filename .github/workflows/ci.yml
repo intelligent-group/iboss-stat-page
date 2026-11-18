@@ -1,0 +1,45 @@
+# Baseline CI for the live iBoss stat page (public GitHub Pages site). Tiny on purpose: typecheck + build + a check that the
+# committed published bundle (ops/) is self-consistent. Fleet baseline: ait-claude-config scripts/repo-baseline-conformance-audit.py.
+name: ci
+
+# ci-hygiene: always-run `check` is the repo's required status check (branch protection); a paths filter would leave it pending forever on unrelated PRs
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    timeout-minutes: 10
+    # hosted-only: public repo (org Default runner group has allows_public_repositories=false; fork PRs must not reach IG boxes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install (lockfile only)
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build (into a temp dir, never over the committed ops/ bundle)
+        run: npx vite build --outDir "$RUNNER_TEMP/ops-build" --emptyOutDir
+
+      - name: Published bundle check (committed ops/ and the fresh build)
+        run: |
+          node scripts/check-published.mjs ops
+          cp ops/.nojekyll "$RUNNER_TEMP/ops-build/.nojekyll"
+          node scripts/check-published.mjs "$RUNNER_TEMP/ops-build"
